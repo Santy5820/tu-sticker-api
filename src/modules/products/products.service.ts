@@ -2,21 +2,25 @@ import { ObjectId } from "mongodb";
 import { Product, ProductCreateInput, ProductUpdateInput } from "./products.model";
 import { ProductsRepository } from "./products.repository";
 import { BadRequestError, NotFoundError } from "../../shared/errors/AppError";
+import { CategoriesRepository } from "../categories/categories.repository";
 
 export class ProductsService {
     private readonly productsRepository = new ProductsRepository();
+    private readonly categoriesRepository = new CategoriesRepository();
 
     async create(data: ProductCreateInput): Promise<Product> {
         const name = this.requireString(data.name, "name");
         const description = this.requireString(data.description, "description");
-        const category = this.requireString(data.category, "category");
+        const category = await this.requireCategorySlug(data.category);
         const price = this.requirePositiveNumber(data.price, "price");
-        const images = Array.isArray(data.images) ? data.images : [];
+        if (data.stock !== undefined) {
+            throw new BadRequestError("El stock debe registrarse mediante el módulo de inventario");
+        }
+        const images = data.images === undefined ? [] : this.requireStringArray(data.images, "images");
         const isCustomizable = typeof data.isCustomizable === "boolean" ? data.isCustomizable : false;
         const isActive = typeof data.isActive === "boolean" ? data.isActive : true;
         const inventoryManaged = typeof data.inventoryManaged === "boolean" ? data.inventoryManaged : false;
         const requiresSupplierFallback = typeof data.requiresSupplierFallback === "boolean" ? data.requiresSupplierFallback : false;
-        const stock = data.stock !== undefined ? this.requireNonNegativeNumber(data.stock, "stock") : undefined;
         const stockAlertThreshold = data.stockAlertThreshold !== undefined ? this.requireNonNegativeNumber(data.stockAlertThreshold, "stockAlertThreshold") : undefined;
 
         const slug = this.createSlug(name);
@@ -32,12 +36,12 @@ export class ProductsService {
             slug,
             description,
             price,
-            category: category.toLowerCase(),
+            category,
             images,
             isActive,
             isCustomizable,
             inventoryManaged,
-            stock,
+            stock: undefined,
             stockAlertThreshold,
             requiresSupplierFallback,
             createdAt: now,
@@ -58,7 +62,7 @@ export class ProductsService {
     }
 
     async findByCategory(category: string): Promise<Product[]> {
-        const normalizedCategory = this.requireString(category, "category");
+        const normalizedCategory = this.createSlug(this.requireString(category, "category"));
         return this.productsRepository.findByCategory(normalizedCategory);
     }
 
@@ -85,14 +89,11 @@ export class ProductsService {
         }
 
         if (data.category !== undefined) {
-            changes.category = this.requireString(data.category, "category").toLowerCase();
+            changes.category = await this.requireCategorySlug(data.category);
         }
 
         if (data.images !== undefined) {
-            if (!Array.isArray(data.images)) {
-                throw new BadRequestError("El campo 'images' debe ser un arreglo");
-            }
-            changes.images = data.images;
+            changes.images = this.requireStringArray(data.images, "images");
         }
 
         if (data.isActive !== undefined) {
@@ -117,7 +118,7 @@ export class ProductsService {
         }
 
         if (data.stock !== undefined) {
-            changes.stock = this.requireNonNegativeNumber(data.stock, "stock");
+            throw new BadRequestError("El stock debe modificarse mediante el módulo de inventario");
         }
 
         if (data.stockAlertThreshold !== undefined) {
@@ -179,13 +180,41 @@ export class ProductsService {
         return value;
     }
 
+    private requireStringArray(value: unknown, field: string): string[] {
+        if (!Array.isArray(value)) {
+            throw new BadRequestError(`El campo '${field}' debe ser un arreglo`);
+        }
+
+        return value.map((item, index) => this.requireString(item, `${field}[${index}]`));
+    }
+
+    private async requireCategorySlug(value: unknown): Promise<string> {
+        const category = this.requireString(value, "category");
+        const slug = this.createSlug(category);
+        const existingCategory = await this.categoriesRepository.findBySlug(slug);
+
+        if (!existingCategory) {
+            throw new BadRequestError("La categoría no existe o está inactiva");
+        }
+
+        return slug;
+    }
+
     private createSlug(value: string): string {
-        return value
+        const slug = value
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
             .toLowerCase()
             .trim()
             .replace(/[^a-z0-9\s-]/g, "")
             .replace(/\s+/g, "-")
             .replace(/-+/g, "-");
+
+        if (!slug) {
+            throw new BadRequestError("La categoría no permite generar un slug válido");
+        }
+
+        return slug;
     }
 
     private toObjectId(id: string): ObjectId {

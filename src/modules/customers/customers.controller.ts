@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import { UnauthorizedError } from "../../shared/errors/AppError";
+import { AuthRequest } from "../../shared/middlewares/auth.middleware";
 import { CustomersService } from "./customers.service";
 
 export class CustomersController {
@@ -22,6 +24,15 @@ export class CustomersController {
     findInactive = async (_req: Request, res: Response): Promise<void> => {
         const customers = await this.customersService.findByStatus(false);
         res.status(200).json(customers);
+    };
+
+    findMe = async (req: Request, res: Response): Promise<void> => {
+        const user = (req as AuthRequest).user;
+        if (!user) {
+            throw new UnauthorizedError("Debes autenticarte para consultar tu perfil de cliente");
+        }
+        const customer = await this.customersService.findByUserId(user.userId);
+        res.status(200).json(customer);
     };
 
     findById = async (req: Request<{ id: string }>, res: Response): Promise<void> => {

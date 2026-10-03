@@ -1,8 +1,8 @@
 import { MongoClient, Db } from "mongodb";
 import { env } from "./env";
 
-let client: MongoClient;
-let db: Db;
+let client: MongoClient | undefined;
+let db: Db | undefined;
 
 export const connectDB = async (): Promise<void> => {
     client = new MongoClient(env.mongoUri);
@@ -16,4 +16,12 @@ export const getDb = (): Db => {
         throw new Error("La base de datos no ha sido inicializada");
     }
     return db;
+};
+
+export const closeDB = async (): Promise<void> => {
+    if (client) {
+        await client.close();
+        client = undefined;
+        db = undefined;
+    }
 };

@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { BadRequestError, NotFoundError } from "../../shared/errors/AppError";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../shared/errors/AppError";
 import { getDb } from "../../config/database";
 import { Customer } from "../customers/customers.model";
 import { LoginInput, RegisterInput, User, UserRole } from "./auth.model";
@@ -14,7 +14,11 @@ export class AuthService {
         const name = this.requireString(data.name, "name");
         const email = this.requireEmail(data.email);
         const password = this.requireString(data.password, "password");
-        const role = this.requireRole(data.role);
+        const role = data.role === undefined ? "CUSTOMER" : this.requireRole(data.role);
+
+        if (role !== "CUSTOMER") {
+            throw new ForbiddenError("El registro público solo permite crear usuarios con rol CUSTOMER");
+        }
 
         const existingUser = await this.authRepository.findByEmail(email);
         if (existingUser) {
@@ -39,6 +43,13 @@ export class AuthService {
             createdAt: now,
             updatedAt: now,
         });
+
+        if (customerId && user._id) {
+            await getDb().collection<Customer>("customers").updateOne(
+                { _id: customerId },
+                { $set: { userId: user._id, updatedAt: new Date() } }
+            );
+        }
 
         const token = this.signToken({
             userId: String(user._id),

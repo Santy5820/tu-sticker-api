@@ -44,6 +44,23 @@ export class ProductsRepository {
         return result ?? null;
     }
 
+    async updateStock(
+        id: ObjectId,
+        previousStock: number | undefined,
+        newStock: number
+    ): Promise<Product | null> {
+        const stockFilter = previousStock === undefined
+            ? { stock: { $exists: false } }
+            : { stock: previousStock };
+
+        const result = await this.collection().findOneAndUpdate(
+            { _id: id, ...stockFilter },
+            { $set: { stock: newStock, updatedAt: new Date() } },
+            { returnDocument: "after" }
+        );
+        return result ?? null;
+    }
+
     async delete(id: ObjectId): Promise<boolean> {
         const result = await this.collection().updateOne(
             { _id: id },

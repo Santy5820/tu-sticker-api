@@ -5,10 +5,12 @@ import helmet from "helmet";
 import morgan from "morgan";
 import v1Routes from "./api/v1/index";
 import { notFound, errorHandler } from "./shared/middlewares/errorHandler";
+import { validateRequestBody } from "./shared/middlewares/requestValidation";
 
 export const app = express();
 
 app.use(express.json());
+app.use(validateRequestBody);
 app.use(cors());
 app.use(compression());
 app.use(helmet());

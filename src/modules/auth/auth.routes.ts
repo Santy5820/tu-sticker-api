@@ -8,7 +8,7 @@ const authController = new AuthController();
 
 router.post("/register", asyncHandler(authController.register));
 router.post("/login", asyncHandler(authController.login));
-router.post("/logout", asyncHandler(authController.logout));
+router.post("/logout", authMiddleware, asyncHandler(authController.logout));
 router.get("/me", authMiddleware, asyncHandler(authController.me));
 
 export default router;
