@@ -64,6 +64,15 @@ http://localhost:3000
 
 Los recursos versionados usan el prefijo `/api/v1`. La API acepta y devuelve JSON. Para las solicitudes con cuerpo se debe enviar `Content-Type: application/json`.
 
+## Documentación OpenAPI / Swagger
+
+La especificación OpenAPI 3.x se genera a partir del backend real y queda disponible en ejecución en:
+
+- Swagger UI: `http://localhost:3000/api/docs/`
+- JSON OpenAPI: `http://localhost:3000/api/docs.json`
+
+La documentación está montada en la aplicación Express con `swagger-jsdoc` y `swagger-ui-express`, y se mantiene alineada con los endpoints reales registrados en la API. La documentación no incluye `password` ni cualquier representación del hash de la contraseña, porque el backend sanitiza las respuestas HTTP antes de serializar el JSON al cliente.
+
 ## Autenticación
 
 `POST /api/v1/auth/register` y `POST /api/v1/auth/login` devuelven un token JWT con una vigencia de 7 días.
@@ -189,7 +198,7 @@ Cuerpo para `POST /`:
 
 Para un usuario `CUSTOMER`, `customerId` es obligatorio. En `PATCH /:id` todos los campos son opcionales: `name`, `email`, `password`, `role`, `customerId` e `isActive`. No se permite enviar un cuerpo vacío.
 
-Nota: los endpoints CRUD de `users` devuelven actualmente el documento persistido, que puede incluir el hash del campo `password`. Los endpoints de autenticación sí omiten ese campo en sus respuestas.
+Nota de seguridad: los endpoints CRUD de `users` no devuelven el campo `password` ni ninguna representación del hash. El hash se almacena solo en la capa de persistencia y se utiliza internamente para la validación de credenciales durante el login. La salida HTTP se sanitiza antes de serializar la respuesta para el frontend.
 
 ### Clientes — `/api/v1/customers`
 

@@ -4,6 +4,7 @@ import compression from "compression";
 import helmet from "helmet";
 import morgan from "morgan";
 import v1Routes from "./api/v1/index";
+import { setupSwagger } from "./config/swagger";
 import { notFound, errorHandler } from "./shared/middlewares/errorHandler";
 import { validateRequestBody } from "./shared/middlewares/requestValidation";
 
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(compression());
 app.use(helmet());
 app.use(morgan("dev"));
+setupSwagger(app);
 
 // Health check
 app.get("/health", (_req, res) => {
